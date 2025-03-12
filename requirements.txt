@@ -2,3 +2,5 @@ mesa
 numpy
 solara
 matplotlib
+networkx
+altair
