@@ -4,3 +4,5 @@ solara
 matplotlib
 networkx
 altair
+tornado
+pandas

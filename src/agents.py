@@ -1,69 +1,41 @@
 from enum import Enum
-
 from mesa import Agent
 
+class ArtType(Enum):
+    HUMAN = 0
+    AI_GENERATED = 1
 
-class State(Enum):
-    SUSCEPTIBLE = 0
-    INFECTED = 1
-    RESISTANT = 2
+class CritiqueType(Enum):
+    NEUTRAL = 0
+    AI_FAVORING = 1
+    HUMAN_FAVORING = 2
 
-
-class VirusAgent(Agent):
-    """Individual Agent definition and its properties/interaction methods."""
-
-    def __init__(
-        self,
-        model,
-        initial_state,
-        virus_spread_chance,
-        virus_check_frequency,
-        recovery_chance,
-        gain_resistance_chance,
-    ):
+class ArtAgent(Agent):
+    """Represents an artist (human or AI) in the system."""
+    
+    def __init__(self, model, art_type, influence_chance):
         super().__init__(model)
-
-        self.state = initial_state
-
-        self.virus_spread_chance = virus_spread_chance
-        self.virus_check_frequency = virus_check_frequency
-        self.recovery_chance = recovery_chance
-        self.gain_resistance_chance = gain_resistance_chance
-
-    def try_to_infect_neighbors(self):
-        neighbors_nodes = self.model.grid.get_neighborhood(
-            self.pos, include_center=False
-        )
-        susceptible_neighbors = [
-            agent
-            for agent in self.model.grid.get_cell_list_contents(neighbors_nodes)
-            if agent.state is State.SUSCEPTIBLE
-        ]
-        for a in susceptible_neighbors:
-            if self.random.random() < self.virus_spread_chance:
-                a.state = State.INFECTED
-
-    def try_gain_resistance(self):
-        if self.random.random() < self.gain_resistance_chance:
-            self.state = State.RESISTANT
-
-    def try_remove_infection(self):
-        # Try to remove
-        if self.random.random() < self.recovery_chance:
-            # Success
-            self.state = State.SUSCEPTIBLE
-            self.try_gain_resistance()
-        else:
-            # Failed
-            self.state = State.INFECTED
-
-    def try_check_situation(self):
-        if (self.random.random() < self.virus_check_frequency) and (
-            self.state is State.INFECTED
-        ):
-            self.try_remove_infection()
+        self.art_type = art_type
+        self.influence_chance = influence_chance
+    
+    def produce_art(self):
+        # Placeholder: Artists create art which may influence critics
+        pass
 
     def step(self):
-        if self.state is State.INFECTED:
-            self.try_to_infect_neighbors()
-        self.try_check_situation()
+        self.produce_art()
+
+class CriticAgent(Agent):
+    """Represents an AI art critic in the system."""
+    
+    def __init__(self, model, critique_type, bias_towards_ai):
+        super().__init__(model)
+        self.critique_type = critique_type
+        self.bias_towards_ai = bias_towards_ai
+    
+    def critique_art(self):
+        # Placeholder: Critics evaluate art and may shift biases
+        pass
+    
+    def step(self):
+        self.critique_art()

@@ -1,96 +1,49 @@
-import math
-
 import networkx as nx
-
 import mesa
 from mesa import Model
-from mesa.examples.basic.virus_on_network.agents import State, VirusAgent
+from agents import ArtAgent, CriticAgent, ArtType, CritiqueType
 
-
-def number_state(model, state):
-    return sum(1 for a in model.grid.get_all_cell_contents() if a.state is state)
-
-
-def number_infected(model):
-    return number_state(model, State.INFECTED)
-
-
-def number_susceptible(model):
-    return number_state(model, State.SUSCEPTIBLE)
-
-
-def number_resistant(model):
-    return number_state(model, State.RESISTANT)
-
-
-class VirusOnNetwork(Model):
-    """A virus model with some number of agents."""
-
+class AIArtSimulation(Model):
+    """A simulation model for AI and human artists, and AI critics."""
+    
     def __init__(
         self,
-        num_nodes=10,
-        avg_node_degree=3,
-        initial_outbreak_size=1,
-        virus_spread_chance=0.4,
-        virus_check_frequency=0.4,
-        recovery_chance=0.3,
-        gain_resistance_chance=0.5,
+        num_artists=10,
+        num_critics=5,
+        ai_art_ratio=0.5,
+        critic_bias=0.5,
+        influence_chance=0.3,
         seed=None,
     ):
         super().__init__(seed=seed)
-        self.num_nodes = num_nodes
-        prob = avg_node_degree / self.num_nodes
-        self.G = nx.erdos_renyi_graph(n=self.num_nodes, p=prob)
+        self.num_artists = num_artists
+        self.num_critics = num_critics
+        self.ai_art_ratio = ai_art_ratio
+        self.critic_bias = critic_bias
+        self.influence_chance = influence_chance
+        
+        self.G = nx.erdos_renyi_graph(n=self.num_artists + self.num_critics, p=0.3)
         self.grid = mesa.space.NetworkGrid(self.G)
-
-        self.initial_outbreak_size = (
-            initial_outbreak_size if initial_outbreak_size <= num_nodes else num_nodes
-        )
-        self.virus_spread_chance = virus_spread_chance
-        self.virus_check_frequency = virus_check_frequency
-        self.recovery_chance = recovery_chance
-        self.gain_resistance_chance = gain_resistance_chance
-
-        self.datacollector = mesa.DataCollector(
-            {
-                "Infected": number_infected,
-                "Susceptible": number_susceptible,
-                "Resistant": number_resistant,
-                "R over S": self.resistant_susceptible_ratio,
-            }
-        )
-
-        # Create agents
-        for node in self.G.nodes():
-            a = VirusAgent(
-                self,
-                State.SUSCEPTIBLE,
-                self.virus_spread_chance,
-                self.virus_check_frequency,
-                self.recovery_chance,
-                self.gain_resistance_chance,
-            )
-
-            # Add the agent to the node
-            self.grid.place_agent(a, node)
-
-        # Infect some nodes
-        infected_nodes = self.random.sample(list(self.G), self.initial_outbreak_size)
-        for a in self.grid.get_cell_list_contents(infected_nodes):
-            a.state = State.INFECTED
-
+        
+        # Create artist agents
+        num_ai_artists = int(self.num_artists * self.ai_art_ratio)
+        num_human_artists = self.num_artists - num_ai_artists
+        
+        for i in range(num_human_artists):
+            agent = ArtAgent(self, ArtType.HUMAN, self.influence_chance)
+            self.grid.place_agent(agent, i)
+        
+        for i in range(num_ai_artists):
+            agent = ArtAgent(self, ArtType.AI_GENERATED, self.influence_chance)
+            self.grid.place_agent(agent, num_human_artists + i)
+        
+        # Create critic agents
+        for i in range(self.num_critics):
+            critique_type = CritiqueType.AI_FAVORING if self.random.random() < self.critic_bias else CritiqueType.HUMAN_FAVORING
+            agent = CriticAgent(self, critique_type, self.critic_bias)
+            self.grid.place_agent(agent, self.num_artists + i)
+        
         self.running = True
-        self.datacollector.collect(self)
-
-    def resistant_susceptible_ratio(self):
-        try:
-            return number_state(self, State.RESISTANT) / number_state(
-                self, State.SUSCEPTIBLE
-            )
-        except ZeroDivisionError:
-            return math.inf
-
+    
     def step(self):
-        self.agents.shuffle_do("step")
-        # collect data
-        self.datacollector.collect(self)
+        self.schedule.step()
