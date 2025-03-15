@@ -28,7 +28,7 @@ class ArtAgent(Agent):
         super().__init__(model)
         self.art_type = art_type  # Human or AI-generated artist
         self.influence_chance = influence_chance  # Chance of producing AI-generated art
-        self.art_created = None  # Track what type of art the agent produces
+        self.previous_art_type = art_type
         self.connected_critics = []  # List to hold connected critics
 
     def ensure_connection_to_critic(self):
@@ -51,31 +51,58 @@ class ArtAgent(Agent):
         Artists create art, which could influence critics.
         The type of art depends on the influence chance, the art agent's type, and the influence of connected critics.
         """
+        
         # Get the list of connected critics
-        connected_critics = self.model.grid.get_neighbors(self.pos, include_center=False)
+        connected_agents = self.model.grid.get_neighbors(self.pos, include_center=False)
+        print("===\nArt Type:", self.art_type, "\nconnected agents: ", connected_agents)
+        
+        # Count the number of human vs AI critics and art agents connected
+        human_count = 0
+        ai_count = 0
 
-        # Loop through connected critics and check if they influence the art production
-        critic_influence = 0
-        for critic in connected_critics:
-            if isinstance(critic, CriticAgent):
-                # If the critic favors AI art, increase the chance of producing AI-generated art
-                if critic.bias_towards_ai:
-                    critic_influence += 0.1  # Influence factor, adjust based on how strong you want the impact
+        for agent in connected_agents:
+            if isinstance(agent, CriticAgent):
+                if agent.critique_type == CritiqueType.AI_FAVORING:
+                    ai_count += 2  # Critics count as 2 for influencing AI art
+                elif agent.critique_type == CritiqueType.HUMAN_FAVORING:
+                    human_count += 2
+                print("Critic:", agent.critique_type, "- ai count:", ai_count, "human count:", human_count)
+            else:
+                if agent.art_type == ArtType.AI_GENERATED:
+                    ai_count += 1
+                else:
+                    human_count += 1
+                print("Art:", agent.art_type, "- ai count:", ai_count, "human count:", human_count)
+        
+        print("human count:", human_count, "ai count:", ai_count)
 
-        # Add the critic influence to the base influence chance of the artist
-        final_influence_chance = self.influence_chance + critic_influence
-
-        # Ensure the final chance does not exceed 1
-        final_influence_chance = min(1.0, final_influence_chance)
-        if self.random.random() < self.influence_chance:
-            self.art_created = ArtType.AI_GENERATED
-        else:
-            self.art_created = ArtType.HUMAN
+        # Adjust influence chance based on the ratio of AI vs human agents
+        total_count = human_count + ai_count
+        adjusted_influence_chance = self.influence_chance  # Start with base influence chance
+        if total_count > 0:
+            print("ratio ai to human:", ai_count, "/", total_count, "=", ai_count / total_count)
+            # Influence chance will be temporarily adjusted by the ratio difference
+            if self.art_type == ArtType.HUMAN:
+                adjusted_influence_chance *= ai_count / total_count  # If the ratio is close to 50/50, no adjustment
+                # Now, produce art based on the adjusted influence chance
+                if self.random.random() < adjusted_influence_chance:
+                    self.art_type = ArtType.AI_GENERATED
+                else:
+                    self.art_type = ArtType.HUMAN
+            else:
+                adjusted_influence_chance *= (1 - ai_count / total_count)
+                
+                # Now, produce art based on the adjusted influence chance
+                if self.random.random() < adjusted_influence_chance:
+                    self.art_type = ArtType.HUMAN
+                else:
+                    self.art_type = ArtType.AI_GENERATED
+        
+        print("Art Type:", self.art_type, adjusted_influence_chance)
 
     def step(self):
         """Each step, the agent produces art."""
         self.produce_art()
-        # Optionally, you can add logic for sending the art to critics or other agents.
 
 
 class CriticAgent(Agent):
@@ -97,27 +124,33 @@ class CriticAgent(Agent):
         if art_agent not in self.connected_art:
             self.connected_art.append(art_agent)
 
-    def critique_art(self, art_agent):
+    def critique_art(self):
         """
-        Critiques the art produced by an artist.
+        Critiques the art produced by connected ArtAgents.
         The critique type may change based on the art and the critic's bias.
         """
-        if art_agent.art_created == ArtType.AI_GENERATED:
-            if self.bias_towards_ai:
-                self.critique_type = CritiqueType.AI_FAVORING
-            else:
-                self.critique_type = CritiqueType.HUMAN_FAVORING
-        elif art_agent.art_created == ArtType.HUMAN:
-            if not self.bias_towards_ai:
-                self.critique_type = CritiqueType.HUMAN_FAVORING
-            else:
-                self.critique_type = CritiqueType.AI_FAVORING
+        human_count = 0
+        ai_count = 0
+
+        # Check all connected art agents
+        for art_agent in self.connected_art:
+            if art_agent.art_type== ArtType.AI_GENERATED:
+                # Check if the critic values AI art
+                if self.random.random() < self.bias_towards_ai:
+                    ai_count += 1
+            elif art_agent.art_type == ArtType.HUMAN:
+                # Check if the critic values human art
+                if self.random.random() < (1 - self.bias_towards_ai):
+                    human_count += 1
+
+        # Determine the critique type based on the counts
+        if ai_count > human_count:
+            self.critique_type = CritiqueType.AI_FAVORING
+        elif human_count > ai_count:
+            self.critique_type = CritiqueType.HUMAN_FAVORING
         else:
             self.critique_type = CritiqueType.NEUTRAL
 
     def step(self):
-        """Each step, the critic randomly critiques an artist's work."""
-        # Find a random artist agent in the model
-        selected_artist = self.random.choice(self.model.schedule)
-        if isinstance(selected_artist, ArtAgent):
-            self.critique_art(selected_artist)
+        """Each step, the critic critiques the connected art agents' work."""
+        self.critique_art()

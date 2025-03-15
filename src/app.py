@@ -13,7 +13,7 @@ from mesa.visualization import (
 # Agent portrayal function to visualize the agents' types (ArtAgent or CriticAgent)
 def agent_portrayal(agent):
     if isinstance(agent, ArtAgent):
-        if agent.art_created == ArtType.AI_GENERATED:
+        if agent.art_type == ArtType.AI_GENERATED:
             color = "tab:blue"  # Blue for AI-generated art
         else:
             color = "tab:orange"  # Orange for human-created art
@@ -38,6 +38,13 @@ model_params = {
         label="Number of Artists",
         value=10,
         min=1,
+        max=50,
+        step=1,
+    ),
+    "num_ai_artists": Slider(
+        label="Initial AI-Generated Artists",
+        value=2,
+        min=0,
         max=50,
         step=1,
     ),
@@ -84,6 +91,7 @@ def post_process_lineplot(ax):
 
 # Create the model
 model1 = ArtCritiqueModel()
+
 
 # Solara page setup with visualization components
 page = SolaraViz(

@@ -19,6 +19,7 @@ class ArtCritiqueModel(Model):
         self,
         num_artists=10,
         num_critics=5,
+        num_ai_artists=2,
         influence_chance=0.5,
         bias_towards_ai=0.5,
         seed=None
@@ -33,6 +34,7 @@ class ArtCritiqueModel(Model):
         super().__init__(seed=seed)
 
         self.num_artists = num_artists
+        self.num_ai_artists = (num_ai_artists if num_ai_artists <= num_artists else num_artists)
         self.num_critics = num_critics
         self.influence_chance = influence_chance
         self.bias_towards_ai = bias_towards_ai
@@ -45,7 +47,12 @@ class ArtCritiqueModel(Model):
 
         # Create art agents (artists)
         for i in range(self.num_artists):
-            art_agent = ArtAgent(self, ArtType.HUMAN, self.influence_chance)  # Start as human artist
+            # Check if it's an AI artist or human artist
+            if i < self.num_ai_artists:
+                art_agent = ArtAgent(self, ArtType.AI_GENERATED, self.influence_chance)  # AI-generated art
+            else:
+                art_agent = ArtAgent(self, ArtType.HUMAN, self.influence_chance)  # Human-generated art
+
             self.schedule.append(art_agent)
             self.grid.place_agent(art_agent, i)  # Place on the network (using the node ID directly)
 
