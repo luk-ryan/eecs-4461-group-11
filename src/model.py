@@ -12,6 +12,27 @@ def number_art_agents(model):
 def number_critics(model):
     return sum(1 for agent in model.schedule if isinstance(agent, CriticAgent))
 
+
+def ai_favored_critiques(model):
+    return sum(1 for agent in model.schedule if isinstance(agent, CriticAgent) and agent.critique_type == CritiqueType.AI_FAVORING)
+
+
+def human_favored_critiques(model):
+    return sum(1 for agent in model.schedule if isinstance(agent, CriticAgent) and agent.critique_type == CritiqueType.HUMAN_FAVORING)
+
+
+def neutral_critiques(model):
+    return sum(1 for agent in model.schedule if isinstance(agent, CriticAgent) and agent.critique_type == CritiqueType.NEUTRAL)
+
+
+def ai_generated_art_count(model):
+    return sum(1 for agent in model.schedule if isinstance(agent, ArtAgent) and agent.art_type == ArtType.AI_GENERATED)
+
+
+def human_generated_art_count(model):
+    return sum(1 for agent in model.schedule if isinstance(agent, ArtAgent) and agent.art_type == ArtType.HUMAN)
+
+
 class ArtCritiqueModel(Model):
     """A model for simulating art production and critiques by AI and human agents."""
 
@@ -34,18 +55,18 @@ class ArtCritiqueModel(Model):
         super().__init__(seed=seed)
 
         self.num_artists = num_artists
-        self.num_ai_artists = (num_ai_artists if num_ai_artists <= num_artists else num_artists)
+        self.num_ai_artists = min(num_ai_artists, num_artists)
         self.num_critics = num_critics
         self.influence_chance = influence_chance
         self.bias_towards_ai = bias_towards_ai
 
         self.schedule = []
         
-        # Create the grid (using a simple network as in the Virus model)
+        # Create a network graph
         self.G = nx.erdos_renyi_graph(self.num_artists + self.num_critics, 0.2)  # Connect artists and critics
         self.grid = NetworkGrid(self.G)
 
-        # Create art agents (artists)
+        # Create art agents
         for i in range(self.num_artists):
             # Check if it's an AI artist or human artist
             if i < self.num_ai_artists:
@@ -69,8 +90,11 @@ class ArtCritiqueModel(Model):
         # Data collector
         self.datacollector = mesa.DataCollector(
             {
-                "ArtAgents": number_art_agents,
-                "CriticAgents": number_critics,
+                "AI Art": ai_generated_art_count,
+                "Human Art": human_generated_art_count, 
+                "AI-Favoring Critics": ai_favored_critiques,  
+                "Human-Favoring Critics": human_favored_critiques, 
+                "Neutral Critics": neutral_critiques,  
             }
         )
 
@@ -79,13 +103,11 @@ class ArtCritiqueModel(Model):
 
     def step(self):
         """Advance the model by one step."""
+        self.datacollector.collect(self)  # Collect data at each step
         # Manually activate each agent in the schedule
         for agent in self.schedule:
             agent.step()
-
-        # Collect data for each step
-        self.datacollector.collect(self)
-
+            
     def get_artists(self):
         """Return the list of artist agents."""
         return [agent for agent in self.schedule if isinstance(agent, ArtAgent)]

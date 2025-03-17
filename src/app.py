@@ -71,23 +71,28 @@ model_params = {
     ),
 }
 
-# Collect some data from the model (e.g., number of human and AI artists, number of critics)
-def get_agents_summary(model):
-    # Get the number of artists and critics in the model
-    num_artists = len([agent for agent in model.schedule if isinstance(agent, ArtAgent)])
-    num_critics = len([agent for agent in model.schedule if isinstance(agent, CriticAgent)])
-    
-    # Return a solara.Markdown component to render the text
-    return solara.Markdown(f"Number of artists: {num_artists}, Number of critics: {num_critics}")
-
 # Visualization of the agent space
 SpacePlot = make_space_component(agent_portrayal)
 
-# Example plot of agent interactions, could be expanded based on model data
+# Line plot to visualize AI vs Human artists & critic biases
 def post_process_lineplot(ax):
     ax.set_ylim(ymin=0)
     ax.set_ylabel("# of Agents")
     ax.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
+
+def extract_data(model):
+    return model.datacollector.get_model_vars_dataframe()
+
+AgentPlot = make_plot_component(
+    {
+        "AI Art": "tab:blue",
+        "Human Art": "tab:orange",
+        "AI-Favoring Critics": "tab:purple",
+        "Human-Favoring Critics": "tab:brown",
+        "Neutral Critics": "tab:gray",
+    },
+    post_process=post_process_lineplot,
+)
 
 # Create the model
 model1 = ArtCritiqueModel()
@@ -98,7 +103,7 @@ page = SolaraViz(
     model1,
     components=[
         SpacePlot,
-        get_agents_summary,  # Display the agent summary
+        AgentPlot, # Line graph tracking agent types over time
     ],
     model_params=model_params,
     name="Art Critique Model",
