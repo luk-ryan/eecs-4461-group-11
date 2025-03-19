@@ -30,23 +30,45 @@
 
 - **Data Collection & Visualization:**
   - Nodes represent agents
-    - Blue for AI-generated art
-    - Orange for human-created art
-    - Purple for AI-favoring critics
-    - Brown for human-favoring critics
-    - Gray for neutral critics
+    - 🔵 AI-generated art
+    - 🟠 Human-created art
+    - 🟣 AI-favoring critics
+    - 🟤 Human-favoring critics
+    - ⚪ Neutral critics
   - Connections represent closeness in art style/genre
   - Line graph to show dominant art type over time
 
 ## How to Run:
 
-1. Create python virtual environment:
-   - `python -m venv venv`
-2. Run python virtual environment:
-   - `.\venv\Scripts\Activate`
-3. Install Dependencies:
-   - `pip install -r requirements.txt`
+### **1. Create a Python virtual environment:**
 
-- To run:
-  - cd into src directory (`cd src/`)
-  - run: `solara run app.py`
+```sh
+python -m venv venv
+```
+
+### **2. Activate the virtual environment:**
+
+#### Windows
+
+```sh
+.\venv\Scripts\Activate
+```
+
+#### Mac/Linux
+
+```sh
+source venv/bin/activate
+```
+
+### **3. Install dependencies:**
+
+```sh
+pip install -r requirements.txt
+```
+
+### **4. Run the simulation:**
+
+```sh
+cd src/
+solara run app.py
+```
